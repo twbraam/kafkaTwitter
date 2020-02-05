@@ -1,2 +1,3 @@
 target/
 .idea/
+src/main/scala/com/twbraam/kafkatwitter/config/TwitterConfiguration.scala
