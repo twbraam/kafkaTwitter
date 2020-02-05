@@ -1,4 +1,4 @@
-package com.twbraam.kafkatwitter.producer.callback
+package com.twbraam.twittercurator.twitterkafka.producer.callback
 
 import org.apache.kafka.clients.producer.{Callback, RecordMetadata}
 

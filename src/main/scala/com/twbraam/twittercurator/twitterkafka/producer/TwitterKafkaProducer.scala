@@ -1,22 +1,22 @@
-package com.twbraam.kafkatwitter.producer
+package com.twbraam.twittercurator.twitterkafka.producer
 
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.{Collections, Properties}
 
 import com.google.gson.Gson
+import com.twbraam.twittercurator.twitterkafka.config.{KafkaConfiguration, TwitterConfiguration}
+import com.twbraam.twittercurator.twitterkafka.model.Tweet
+import com.twbraam.twittercurator.twitterkafka.producer.callback.BasicCallback
 import com.twitter.hbc.ClientBuilder
 import com.twitter.hbc.core.Constants
 import com.twitter.hbc.core.endpoint.StatusesFilterEndpoint
 import com.twitter.hbc.core.processor.StringDelimitedProcessor
 import com.twitter.hbc.httpclient.BasicClient
 import com.twitter.hbc.httpclient.auth.OAuth1
-import com.twbraam.kafkatwitter.config.{KafkaConfiguration, TwitterConfiguration}
-import com.twbraam.kafkatwitter.model.Tweet
-import com.twbraam.kafkatwitter.producer.callback.BasicCallback
 import org.apache.kafka.clients.producer.{KafkaProducer, ProducerConfig, ProducerRecord}
 import org.apache.kafka.common.serialization.{LongSerializer, StringSerializer}
 
-class TwitterKafkaProducer {
+object TwitterKafkaProducer {
 
   // Configure auth
   val authentication = new OAuth1(
@@ -39,7 +39,7 @@ class TwitterKafkaProducer {
   val gson = new Gson
   val callback = new BasicCallback
 
-  private def getProducer: KafkaProducer[Long, String] = {
+  def getProducer: KafkaProducer[Long, String] = {
     val properties = new Properties
     properties.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, KafkaConfiguration.SERVERS)
     properties.put(ProducerConfig.ACKS_CONFIG, "1")
@@ -53,20 +53,17 @@ class TwitterKafkaProducer {
   def run(): Unit = {
     client.connect()
     val producer = getProducer
-    try while ( {
-      true
-    }) {
-      val thing = queue.take
-      println(thing)
-      val tweet = gson.fromJson(thing, classOf[Tweet])
+    try while (true) {
+      val tweet = gson.fromJson(queue.take, classOf[Tweet])
       println(s"Fetched tweet id ${tweet.id}")
+
       val key = tweet.id
       val msg = tweet.toString
       val record = new ProducerRecord[Long, String](KafkaConfiguration.TOPIC, key, msg)
+
       producer.send(record, callback)
     } catch {
-      case e: InterruptedException =>
-        e.printStackTrace()
+      case e: InterruptedException => e.printStackTrace()
     } finally {
       client.stop()
       if (producer != null) producer.close()
