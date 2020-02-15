@@ -4,9 +4,9 @@ import java.util.concurrent.LinkedBlockingQueue
 import java.util.{Collections, Properties}
 
 import com.google.gson.Gson
-import com.twbraam.twittercurator.twitterkafka.config.{KafkaConfiguration, TwitterConfiguration}
+import com.twbraam.twittercurator.config.{KafkaConfiguration, TwitterConfiguration}
 import com.twbraam.twittercurator.twitterkafka.model.Tweet
-import com.twbraam.twittercurator.twitterkafka.producer.callback.BasicCallback
+import com.twbraam.twittercurator.callback.BasicCallback
 import com.twitter.hbc.ClientBuilder
 import com.twitter.hbc.core.Constants
 import com.twitter.hbc.core.endpoint.StatusesFilterEndpoint
@@ -15,6 +15,8 @@ import com.twitter.hbc.httpclient.BasicClient
 import com.twitter.hbc.httpclient.auth.OAuth1
 import org.apache.kafka.clients.producer.{KafkaProducer, ProducerConfig, ProducerRecord}
 import org.apache.kafka.common.serialization.{LongSerializer, StringSerializer}
+import org.apache.commons.text.StringEscapeUtils.escapeJava
+
 
 object TwitterKafkaProducer {
 
@@ -37,31 +39,31 @@ object TwitterKafkaProducer {
     .endpoint(endpoint)
     .processor(new StringDelimitedProcessor(queue)).build
   val gson = new Gson
-  val callback = new BasicCallback
 
   def getProducer: KafkaProducer[Long, String] = {
-    val properties = new Properties
-    properties.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, KafkaConfiguration.SERVERS)
-    properties.put(ProducerConfig.ACKS_CONFIG, "1")
-    properties.put(ProducerConfig.LINGER_MS_CONFIG, 500)
-    properties.put(ProducerConfig.RETRIES_CONFIG, 0)
-    properties.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, classOf[LongSerializer].getName)
-    properties.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, classOf[StringSerializer].getName)
-    new KafkaProducer[Long, String](properties)
+    val props = new Properties
+    props.setProperty(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, KafkaConfiguration.SERVERS)
+    props.setProperty(ProducerConfig.ACKS_CONFIG, "1")
+    props.setProperty(ProducerConfig.LINGER_MS_CONFIG, "500")
+    props.setProperty(ProducerConfig.RETRIES_CONFIG, "0")
+    props.setProperty(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, classOf[LongSerializer].getName)
+    props.setProperty(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, classOf[StringSerializer].getName)
+    new KafkaProducer[Long, String](props)
   }
 
   def run(): Unit = {
     client.connect()
     val producer = getProducer
+
     try while (true) {
-      val tweet = gson.fromJson(queue.take, classOf[Tweet])
-      println(s"Fetched tweet id ${tweet.id}")
+      val tweetString = queue.take
+      val tweet = gson.fromJson(tweetString, classOf[Tweet])
 
       val key = tweet.id
-      val msg = tweet.toString
-      val record = new ProducerRecord[Long, String](KafkaConfiguration.TOPIC, key, msg)
+      val value = tweet.toString
+      val record = new ProducerRecord[Long, String](KafkaConfiguration.TOPIC_TWITTER, key, value)
 
-      producer.send(record, callback)
+      producer.send(record, BasicCallback)
     } catch {
       case e: InterruptedException => e.printStackTrace()
     } finally {
