@@ -1,4 +1,4 @@
-package com.twbraam.twittercurator.config
+package com.twbraam.twittercurator.utils.config
 
 object KafkaConfiguration {
   val SERVERS = "localhost:9094"

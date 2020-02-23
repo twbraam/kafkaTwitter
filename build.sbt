@@ -15,6 +15,8 @@ libraryDependencies ++= List(
   "org.apache.flink" %% "flink-scala" % flinkVersion,
   "org.apache.flink" %% "flink-streaming-scala" % flinkVersion,
   "org.apache.flink" %% "flink-connector-kafka" % flinkVersion,
-  "org.apache.commons" % "commons-text" % "1.8"
+  "org.apache.commons" % "commons-text" % "1.8",
+  "org.twitter4j" % "twitter4j-core" % "4.0.7"
+
 
 )

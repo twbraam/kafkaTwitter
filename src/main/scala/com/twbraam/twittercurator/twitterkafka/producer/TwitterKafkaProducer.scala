@@ -4,9 +4,10 @@ import java.util.concurrent.LinkedBlockingQueue
 import java.util.{Collections, Properties}
 
 import com.google.gson.Gson
-import com.twbraam.twittercurator.config.{KafkaConfiguration, TwitterConfiguration}
-import com.twbraam.twittercurator.twitterkafka.model.Tweet
-import com.twbraam.twittercurator.callback.BasicCallback
+import com.twbraam.twittercurator.utils.config.{KafkaConfiguration, TwitterConfiguration}
+import com.twbraam.twittercurator.utils.model.StaleTweet
+import com.twbraam.twittercurator.utils.twitter.TwitterStreamClient
+import com.twbraam.twittercurator.utils.twitter.callback.BasicCallback
 import com.twitter.hbc.ClientBuilder
 import com.twitter.hbc.core.Constants
 import com.twitter.hbc.core.endpoint.StatusesFilterEndpoint
@@ -19,28 +20,10 @@ import org.apache.commons.text.StringEscapeUtils.escapeJava
 
 
 object TwitterKafkaProducer {
+  val gson: Gson = new Gson
+  val twitter: TwitterStreamClient = TwitterStreamClient(TwitterConfiguration.HASHTAG)
 
-  // Configure auth
-  val authentication = new OAuth1(
-    TwitterConfiguration.CONSUMER_KEY,
-    TwitterConfiguration.CONSUMER_SECRET,
-    TwitterConfiguration.ACCESS_TOKEN,
-    TwitterConfiguration.TOKEN_SECRET
-  )
-
-  // track the terms of your choice. here im only tracking #bigdata.
-  val endpoint = new StatusesFilterEndpoint
-  endpoint.trackTerms(Collections.singletonList(TwitterConfiguration.HASHTAG))
-
-  val queue = new LinkedBlockingQueue[String](10000)
-  val client: BasicClient = new ClientBuilder()
-    .hosts(Constants.STREAM_HOST)
-    .authentication(authentication)
-    .endpoint(endpoint)
-    .processor(new StringDelimitedProcessor(queue)).build
-  val gson = new Gson
-
-  def getProducer: KafkaProducer[Long, String] = {
+  val producer: KafkaProducer[Long, String] = {
     val props = new Properties
     props.setProperty(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, KafkaConfiguration.SERVERS)
     props.setProperty(ProducerConfig.ACKS_CONFIG, "1")
@@ -52,12 +35,11 @@ object TwitterKafkaProducer {
   }
 
   def run(): Unit = {
-    client.connect()
-    val producer = getProducer
+    twitter.client.connect()
 
     try while (true) {
-      val tweetString = queue.take
-      val tweet = gson.fromJson(tweetString, classOf[Tweet])
+      val tweetString = twitter.queue.take
+      val tweet = gson.fromJson(tweetString, classOf[StaleTweet])
 
       val key = tweet.id
       val value = tweet.toString
@@ -67,7 +49,7 @@ object TwitterKafkaProducer {
     } catch {
       case e: InterruptedException => e.printStackTrace()
     } finally {
-      client.stop()
+      twitter.client.stop()
       if (producer != null) producer.close()
     }
   }

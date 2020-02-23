@@ -1,4 +1,4 @@
-package com.twbraam.twittercurator.twitterkafka.model
+package com.twbraam.twittercurator.utils.model
 
 import com.google.gson.annotations.SerializedName
 import org.apache.commons.text.StringEscapeUtils.escapeJava

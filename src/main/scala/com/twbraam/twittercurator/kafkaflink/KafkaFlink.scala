@@ -2,17 +2,14 @@ package com.twbraam.twittercurator.kafkaflink
 
 import java.util.{Properties, UUID}
 
-import com.twbraam.twittercurator.config.KafkaConfiguration
-import com.twbraam.twittercurator.kafkaflink.model.Tweet
-import com.twbraam.twittercurator.twittertimed.producer.TwitterTimedProducer.gson
+import com.twbraam.twittercurator.utils.config.KafkaConfiguration
+import com.twbraam.twittercurator.kafkaflink.processor.{TweetParser, TweetRefresher}
+import com.twbraam.twittercurator.kafkaflink.sink.TweetSink
+import com.twbraam.twittercurator.utils.model.{FreshTweet, StaleTweet}
 import org.apache.flink.api.common.serialization.SimpleStringSchema
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.streaming.api.datastream.DataStreamSink
-import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
+import org.apache.flink.streaming.api.scala.{StreamExecutionEnvironment, _}
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer
-import org.apache.flink.streaming.util.serialization.JSONKeyValueDeserializationSchema
 import org.apache.kafka.clients.consumer.ConsumerConfig
-import org.apache.flink.streaming.api.scala._
 
 object KafkaFlink extends App {
   val env: StreamExecutionEnvironment = StreamExecutionEnvironment.getExecutionEnvironment
@@ -21,13 +18,24 @@ object KafkaFlink extends App {
   props.setProperty(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, KafkaConfiguration.SERVERS)
   props.setProperty(ConsumerConfig.GROUP_ID_CONFIG, UUID.randomUUID.toString)
 
-  val stream: DataStreamSink[Tweet] = env
+  val source: DataStream[String] = env
     .addSource(new FlinkKafkaConsumer[String](KafkaConfiguration.TOPIC_TIMED, new SimpleStringSchema, props).setStartFromEarliest())
-    .map(gson.fromJson(_, classOf[Tweet]))
-    .print()
+    .name("source")
+
+  val staleTweets: DataStream[StaleTweet] = source
+    .process(new TweetParser)
+    .name("tweets")
+
+  val freshTweets: DataStream[FreshTweet] = staleTweets
+    .process(new TweetRefresher)
+    .name("tweets")
 
 
-  env.execute("Test")
+  freshTweets
+    .addSink(new TweetSink)
+    .name("print-tweets")
+
+  env.execute("Tweet Interpreter")
 
 
 }

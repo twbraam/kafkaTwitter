@@ -1,13 +1,13 @@
-package com.twbraam.twittercurator.twittertimed.producer
+package com.twbraam.twittercurator.kafkatimer.producer
 
 import java.time.Duration
 import java.util
 import java.util.{Properties, UUID}
 
 import com.google.gson.Gson
-import com.twbraam.twittercurator.callback.BasicCallback
-import com.twbraam.twittercurator.config.KafkaConfiguration
-import com.twbraam.twittercurator.twittertimed.model.Tweet
+import com.twbraam.twittercurator.utils.twitter.callback.BasicCallback
+import com.twbraam.twittercurator.utils.config.KafkaConfiguration
+import com.twbraam.twittercurator.utils.model.StaleTweet
 import org.apache.kafka.clients.consumer.{ConsumerConfig, KafkaConsumer}
 import org.apache.kafka.clients.producer.{KafkaProducer, ProducerConfig, ProducerRecord}
 import org.apache.kafka.common.serialization.{LongDeserializer, LongSerializer, StringDeserializer, StringSerializer}
@@ -15,7 +15,7 @@ import org.apache.kafka.common.serialization.{LongDeserializer, LongSerializer, 
 import scala.collection.JavaConverters._
 
 
-object TwitterTimedProducer {
+object KafkaTimerProducer {
   val gson = new Gson
 
   def getProducer: KafkaProducer[Long, String] = {
@@ -47,10 +47,10 @@ object TwitterTimedProducer {
 
     if (age < 86400000) {
       val toWait = 86400000 - age
-      println(s"Tweet is too young ($age), trying again in ${toWait / 1000} seconds (or ${toWait / 1000 / 60} minutes or ${toWait / 1000 / 60 / 60} hours)")
+      println(s"StaleTweet is too young ($age), trying again in ${toWait / 1000} seconds (or ${toWait / 1000 / 60} minutes or ${toWait / 1000 / 60 / 60} hours)")
       Thread.sleep(toWait + 1)
       checkIfDayOld(tweetTimestamp)
-    } else println("Tweet is at least a day old")
+    } else println("StaleTweet is at least a day old")
   }
 
   def run(): Unit = {
@@ -65,15 +65,15 @@ object TwitterTimedProducer {
       val records = consumer.poll(Duration.ofMillis(100))
       for (record <- records.asScala) {
         val (offset, key, value) = (record.offset, record.key, record.value)
-        println(s"Tweet: $value")
-        val tweet: Tweet = gson.fromJson(value, classOf[Tweet])
+        println(s"StaleTweet: $value")
+        val tweet: StaleTweet = gson.fromJson(value, classOf[StaleTweet])
         println("text: " + tweet.text)
-        println("ts: " + tweet.timestamp)
+        println("ts: " + tweet.timestamp_ms)
         println("id: " + tweet.id)
         println("user: " + tweet.user)
 
 
-        val tweetTimestamp: Long = tweet.timestamp
+        val tweetTimestamp: Long = tweet.timestamp_ms
         checkIfDayOld(tweetTimestamp)
 
         val newRecord = new ProducerRecord[Long, String](KafkaConfiguration.TOPIC_TIMED, key, value)
