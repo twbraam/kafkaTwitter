@@ -35,6 +35,8 @@ object TwitterKafkaProducer {
   }
 
   def run(): Unit = {
+    println("Started TwitterKafka...")
+
     twitter.client.connect()
 
     try while (true) {

@@ -20,7 +20,6 @@ class TweetParser extends ProcessFunction[String, StaleTweet] {
                       collector: Collector[StaleTweet]): Unit = {
 
     val tweet = gson.fromJson(element, classOf[StaleTweet])
-
     collector.collect(tweet)
   }
 }

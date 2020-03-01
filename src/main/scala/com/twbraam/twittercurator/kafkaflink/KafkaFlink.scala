@@ -12,6 +12,8 @@ import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer
 import org.apache.kafka.clients.consumer.ConsumerConfig
 
 object KafkaFlink extends App {
+  println("Started KafkaFlink...")
+
   val env: StreamExecutionEnvironment = StreamExecutionEnvironment.getExecutionEnvironment
 
   val props = new Properties()

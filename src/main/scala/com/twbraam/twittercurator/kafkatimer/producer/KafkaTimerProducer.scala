@@ -54,6 +54,8 @@ object KafkaTimerProducer {
   }
 
   def run(): Unit = {
+    println("Started KafkaTimer...")
+
     val consumer = getConsumer
     val topics: util.List[String] = List(KafkaConfiguration.TOPIC_TWITTER).asJava
 

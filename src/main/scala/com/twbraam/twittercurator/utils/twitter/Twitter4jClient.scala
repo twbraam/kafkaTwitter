@@ -1,32 +1,46 @@
 package com.twbraam.twittercurator.utils.twitter
 
-import java.util
-
 import com.twbraam.twittercurator.utils.config.TwitterConfiguration
+import com.twbraam.twittercurator.utils.model.{FreshTweet, User}
 import twitter4j.{Status, Twitter, TwitterFactory}
 import twitter4j.conf.ConfigurationBuilder
+
 import scala.collection.JavaConverters._
+import scala.collection.mutable.ListBuffer
+
+class Twitter4jClient(twitter: Twitter) {
+
+  def refreshTweets(tweetIds: ListBuffer[Long]): List[FreshTweet] = {
+    val statuses = twitter.tweets().lookup(tweetIds: _*)
+
+    val it: Iterator[Status] = statuses.iterator.asScala
+
+    val freshTweets = it.map { status =>
+      val twitter4jUser: twitter4j.User = status.getUser
+      val user = User(twitter4jUser.getId, twitter4jUser.getName)
+
+      FreshTweet(status.getId, status.getText, user, status.getRetweetCount.toLong, status.getCreatedAt.getTime)
+    }
+
+    freshTweets.toList
+  }
+
+}
 
 object Twitter4jClient {
 
-  def main(args : Array[String]) {
+  def apply(): Twitter4jClient = {
 
-    // (1) config work to create a twitter object
     val cb = new ConfigurationBuilder
+
     cb.setDebugEnabled(true)
       .setOAuthConsumerKey(TwitterConfiguration.CONSUMER_KEY)
       .setOAuthConsumerSecret(TwitterConfiguration.CONSUMER_SECRET)
       .setOAuthAccessToken(TwitterConfiguration.ACCESS_TOKEN)
       .setOAuthAccessTokenSecret(TwitterConfiguration.TOKEN_SECRET)
     val tf = new TwitterFactory(cb.build)
-    val twitter = tf.getInstance
 
-    // (2) use the twitter object to get your friend's timeline
-    val list = List(1231564490501689351L, 1231462445706645504L)
-    val statuses = twitter.tweets().lookup(list: _*)
-    val it = statuses.iterator.asScala
-    it.foreach(status =>
-      println(status.getFavoriteCount + " " + status.getRetweetCount))
+    new Twitter4jClient(tf.getInstance)
   }
 
 }

@@ -23,7 +23,7 @@ object TweetSink {
 class TweetSink extends SinkFunction[FreshTweet] {
 
   override def invoke(value: FreshTweet, context: SinkFunction.Context[_]): Unit = {
-
+    println(value.toString)
     TweetSink.LOG.info(value.toString)
 
   }
